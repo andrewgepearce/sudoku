@@ -22,7 +22,7 @@ function setCookie(cname, cvalue, exdays) {
 	var d = new Date();
 	d.setTime(d.getTime() + exdays * 24 * 60 * 60 * 1000);
 	var expires = "expires=" + d.toUTCString();
-	document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+	document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/;SameSite=Lax";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -722,15 +722,19 @@ document.getElementById("finalisecells").disabled = false;
 document.getElementById("buildano").disabled = true;
 document.getElementById("rulefind").disabled = true;
 document.getElementById("ruleexec").disabled = true;
+////////////////////////////////////////////////////////////////////////////////
+// FINALSIE CELLSS
 document.getElementById("finalisecells").addEventListener("click", () => {
 	document.getElementById("buildano").disabled = false;
 	document.getElementById("finalisecells").disabled = true;
+	document.getElementById("reset").disabled = true;
 	let dds = document.getElementsByClassName("dropdown");
 	for (let i = 0; i < dds.length; i++) {
 		dds[i].style.display = "none";
 	}
 });
-
+////////////////////////////////////////////////////////////////////////////////
+// BUILD ANNOTATIONS
 document.getElementById("buildano").addEventListener("click", () => {
 	buildInitialAnnotations();
 	drawGridFromState();
@@ -739,11 +743,57 @@ document.getElementById("buildano").addEventListener("click", () => {
 	//clearAnnotation(1, 9, 7);
 	//drawGridFromState();
 });
-
+////////////////////////////////////////////////////////////////////////////////
+// FIND A RULE TO APPLY
 document.getElementById("rulefind").addEventListener("click", () => {
 	findNextRuleToApply();
 	document.getElementById("rulefind").disabled = true;
 	document.getElementById("ruleexec").disabled = false;
+});
+////////////////////////////////////////////////////////////////////////////////
+// LOAD COOKIE
+document.getElementById("loadcookie").addEventListener("click", (e) => {
+	let state = getCookie("sudstate");
+	let idx = 0;
+	if (state != undefined && state != null) {
+		for (let i = 0; i < 9; i++) {
+			for (let j = 0; j < 9; j++) {
+				sudokoState[i][j].annotations = [];
+				let val = parseInt(state.charAt(idx++), 10);
+				if (val >= 1 && val <= 9) sudokoState[i][j].value = val;
+				else sudokoState[i][j].value = null;
+				for (let k = 1; k < 10; k++) {
+					let val = parseInt(state.charAt(idx++), 10);
+					if (val >= 1 && val <= 9) sudokoState[i][j].annotations.push(k);
+				}
+			}
+		}
+		drawGridFromState();
+	} else alert("No suduko state cookie");
+});
+////////////////////////////////////////////////////////////////////////////////
+// SET COOKIE
+document.getElementById("setcookie").addEventListener("click", (e) => {
+	let ckval = "";
+	for (let i = 0; i < 9; i++) {
+		for (let j = 0; j < 9; j++) {
+			let cell = sudokoState[i][j];
+			if (typeof cell.value == "number") ckval += cell.value;
+			else ckval += 0;
+			for (let k = 1; k < 10; k++) {
+				if (cell.annotations.includes(k)) ckval += k;
+				else ckval += 0;
+			}
+		}
+	}
+	setCookie("sudstate", ckval, 999);
+	alert("Suduko state saved to cookie");
+});
+////////////////////////////////////////////////////////////////////////////////
+// RESET
+document.getElementById("reset").addEventListener("click", (e) => {
+	initSudokoState();
+	drawGridFromState();
 });
 
 //buildInitialAnnotations();
