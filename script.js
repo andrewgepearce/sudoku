@@ -189,6 +189,52 @@ function drawGridFromState() {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// CREATE DROP DOWN DIV
+function createDropDown(parent, cellcolwhole, cellrowwhole) {
+	if (parent == undefined || parent == null) return;
+	let lockButton = document.getElementById("finalisecells");
+	if (lockButton != undefined && lockButton != null && lockButton.disabled == true) return;
+	let ddcontent = document.createElement("div");
+	ddcontent.className = "dropdown-content";
+	ddcontent.id = "dropdownList";
+	for (let k = 1; k <= 9; k++) {
+		let val = document.createElement("a");
+		val.innerHTML = k;
+		val.addEventListener("click", (e) => {
+			sudokoState[cellcolwhole - 1][cellrowwhole - 1].value = k;
+			drawGridFromState();
+			document.remove(ddcontent);
+		});
+		ddcontent.appendChild(val);
+	}
+	let clearval = document.createElement("a");
+	clearval.innerHTML = "clear";
+	clearval.addEventListener("click", (e) => {
+		sudokoState[cellcolwhole - 1][cellrowwhole - 1].value = null;
+		drawGridFromState();
+		document.remove(ddcontent);
+	});
+	ddcontent.appendChild(clearval);
+	ddcontent.addEventListener("mouseout", (e) => {
+		console.log("Leave");
+		//document.getElementById("dropdownList").remove();
+		// document.remove(document.getElementById("dropdownList"));
+	});
+	parent.appendChild(ddcontent);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Hide the menu when clicking outside of it
+const documentClickHandler = function (e) {
+	const isClickedOutside = !cellsetmenu.contains(e.target);
+	if (isClickedOutside) {
+		cellsetmenu.classList.add("hidden");
+		document.removeEventListener("click", documentClickHandler);
+		sudokoState.cellsetmenu = null;
+	}
+};
+
 ////////////////////////////////////////////////
 function drawgrid(containerid) {
 	let container = document.getElementById(containerid);
@@ -199,54 +245,101 @@ function drawgrid(containerid) {
 		sudbox.className = [`sudbox r${row} c${col}`];
 		sudbox.id = `box${i}`;
 		container.appendChild(sudbox);
+		let sudboxOverlay = document.createElement("div");
+		sudboxOverlay.className = [`sudbox_overlay r${row} c${col}`];
+		sudboxOverlay.id = `box${i}_overlay`;
+		container.appendChild(sudboxOverlay);
+
 		for (let j = 1; j <= 9; j++) {
 			let sudcell = document.createElement("div");
 			let cellcol = j == 1 || j == 4 || j == 7 ? 1 : j == 2 || j == 5 || j == 8 ? 2 : 3;
 			let cellcolwhole = (col - 1) * 3 + cellcol;
 			let cellrow = j < 4 ? 1 : j < 7 ? 2 : 3;
 			let cellrowwhole = (row - 1) * 3 + cellrow;
-			sudcell.className = [`sudcell r${cellrow} c${cellcol} box${i} col${cellcolwhole} row${cellrowwhole}`];
+			sudcell.className = [`sudcell cellwidth cellheight r${cellrow} c${cellcol} box${i} col${cellcolwhole} row${cellrowwhole}`];
 			sudcell.id = `cell-c${cellcolwhole}-r${cellrowwhole}`;
-			let dd = document.createElement("div");
-			dd.className = "dropdown";
-			let ddbtn = document.createElement("button");
-			ddbtn.className = "dropbtn";
-			ddbtn.innerHTML = "...";
-			dd.appendChild(ddbtn);
-			let ddcontent = document.createElement("div");
-			ddcontent.className = "dropdown-content";
-
-			dd.appendChild(ddcontent);
-			for (let k = 1; k <= 9; k++) {
-				let val = document.createElement("a");
-				val.innerHTML = k;
-				val.addEventListener("click", (e) => {
-					sudokoState[cellcolwhole - 1][cellrowwhole - 1].value = k;
-					drawGridFromState();
-				});
-				ddcontent.appendChild(val);
-			}
-			let clearval = document.createElement("a");
-			clearval.innerHTML = "clear";
-			clearval.addEventListener("click", (e) => {
-				sudokoState[cellcolwhole - 1][cellrowwhole - 1].value = null;
-				drawGridFromState();
-			});
-			ddcontent.appendChild(clearval);
-			sudcell.appendChild(dd);
-
-			sudcell.addEventListener("click", (e) => {
-				let b = document.getElementById("buildano");
-				if (b.disabled == true) return;
-				let dd = document.getElementById(e.target.id + "-dropdown");
-				if (dd.style.display == "none") {
-					dd.style.left = e.clientX + 10;
-					dd.style.top = e.clientY + 10;
-					dd.style.display = "block";
-				}
-			});
-
 			sudbox.appendChild(sudcell);
+			// Overlay cell
+			let sudcellOverlay = document.createElement("div");
+			sudcellOverlay.className = [
+				`sudcell_overlay cellwidth cellheight r${cellrow} c${cellcol} box${i} col${cellcolwhole} row${cellrowwhole}`,
+			];
+			sudcellOverlay.id = `cell-c${cellcolwhole}-r${cellrowwhole}_overlay`;
+			sudcellOverlay.addEventListener("contextmenu", function (e) {
+				e.preventDefault();
+				const x = e.clientX;
+				const y = e.clientY;
+				cellsetmenu.style.top = `${y}px`;
+				cellsetmenu.style.left = `${x}px`;
+				cellsetmenu.classList.remove("hidden");
+				sudokoState.cellsetmenu = {col: cellcolwhole, row: cellrowwhole};
+				for (let possval = 1; possval <= 9; possval++) {
+					let disable = false;
+					if (_inBox(cellcolwhole, cellrowwhole, possval)) {
+						disable = true;
+					} else if (_inRow(cellrowwhole, possval)) {
+						disable = true;
+					} else if (_inCol(cellcolwhole, possval)) {
+						disable = true;
+					}
+					if (disable) {
+						document.getElementById(`cellsetmenu_${possval}`).classList.add("disabledcellselect");
+						document.getElementById(`cellsetmenu_${possval}`).classList.remove("enabledcellselect");
+					} else {
+						document.getElementById(`cellsetmenu_${possval}`).classList.add("enabledcellselect");
+						document.getElementById(`cellsetmenu_${possval}`).classList.remove("disabledcellselect");
+					}
+				}
+				document.getElementById(`cellsetmenu_clear`).classList.add("enabledcellselect");
+				document.addEventListener("click", documentClickHandler);
+			});
+			sudboxOverlay.appendChild(sudcellOverlay);
+
+			// sudcellOverlay.addEventListener("click", (e) => {
+			// 	//createDropDown(sudcellOverlay, cellcolwhole, cellrowwhole);
+			// });
+
+			// let dd = document.createElement("div");
+			// dd.className = "dropdown_overlay cellwidth cellheight";
+			// sudcell.appendChild(dd);
+			// dd.className = "dropdown";
+			// let ddbtn = document.createElement("button");
+			// ddbtn.className = "dropbtn";
+			// ddbtn.innerHTML = "...";
+			// dd.appendChild(ddbtn);
+			// let ddcontent = document.createElement("div");
+			// ddcontent.className = "dropdown-content";
+
+			// dd.appendChild(ddcontent);
+			// for (let k = 1; k <= 9; k++) {
+			// 	let val = document.createElement("a");
+			// 	val.innerHTML = k;
+			// 	val.addEventListener("click", (e) => {
+			// 		sudokoState[cellcolwhole - 1][cellrowwhole - 1].value = k;
+			// 		drawGridFromState();
+			// 	});
+			// 	ddcontent.appendChild(val);
+			// }
+			// let clearval = document.createElement("a");
+			// clearval.innerHTML = "clear";
+			// clearval.addEventListener("click", (e) => {
+			// 	sudokoState[cellcolwhole - 1][cellrowwhole - 1].value = null;
+			// 	drawGridFromState();
+			// });
+			// ddcontent.appendChild(clearval);
+			// sudcell.appendChild(dd);
+
+			// sudcell.addEventListener("click", (e) => {
+			// 	let b = document.getElementById("buildano");
+			// 	if (b.disabled == true) return;
+			// 	let dd = document.getElementById(e.target.id + "-dropdown");
+			// 	if (dd.style.display == "none") {
+			// 		dd.style.left = e.clientX + 10;
+			// 		dd.style.top = e.clientY + 10;
+			// 		dd.style.display = "block";
+			// 	}
+			// });
+
 			for (let k = 1; k <= 9; k++) {
 				let sudanno = document.createElement("div");
 				let annocol = k == 1 || k == 4 || k == 7 ? 1 : k == 2 || k == 5 || k == 8 ? 2 : 3;
@@ -728,9 +821,9 @@ document.getElementById("finalisecells").addEventListener("click", () => {
 	document.getElementById("buildano").disabled = false;
 	document.getElementById("finalisecells").disabled = true;
 	document.getElementById("reset").disabled = true;
-	let dds = document.getElementsByClassName("dropdown");
-	for (let i = 0; i < dds.length; i++) {
-		dds[i].style.display = "none";
+	let overlays = document.getElementsByClassName("sudbox_overlay");
+	for (let i = 0; i < overlays.length; i++) {
+		overlays[i].style.display = "none";
 	}
 });
 ////////////////////////////////////////////////////////////////////////////////
@@ -795,6 +888,62 @@ document.getElementById("reset").addEventListener("click", (e) => {
 	initSudokoState();
 	drawGridFromState();
 });
+////////////////////////////////////////////////////////////////////////////////
+// CELL SET HANDLERS
+document.getElementById("cellsetmenu_clear").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(null);
+});
+document.getElementById("cellsetmenu_1").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(1);
+});
+document.getElementById("cellsetmenu_2").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(2);
+});
+document.getElementById("cellsetmenu_3").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(3);
+});
+document.getElementById("cellsetmenu_4").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(4);
+});
+document.getElementById("cellsetmenu_5").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(5);
+});
+document.getElementById("cellsetmenu_6").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(6);
+});
+document.getElementById("cellsetmenu_7").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(7);
+});
+document.getElementById("cellsetmenu_8").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(8);
+});
+document.getElementById("cellsetmenu_9").addEventListener("click", (e) => {
+	if (e.target.classList.contains("enabledcellselect")) handleSetCellClick(9);
+});
+function handleSetCellClick(value) {
+	let column = sudokoState.cellsetmenu.col;
+	let row = sudokoState.cellsetmenu.row;
+	if (column == undefined || row == undefined) return;
+	if (
+		Number.isInteger(value) &&
+		value >= 1 &&
+		value <= 9 &&
+		Number.isInteger(column) &&
+		column >= 1 &&
+		column <= 9 &&
+		Number.isInteger(row) &&
+		row >= 1 &&
+		row <= 9
+	) {
+		sudokoState[column - 1][row - 1].value = value;
+	} else {
+		sudokoState[column - 1][row - 1].value = null;
+	}
+	drawGridFromState();
+	cellsetmenu.classList.add("hidden");
+	document.removeEventListener("click", documentClickHandler);
+	sudokoState.cellsetmenu = null;
+}
 
 //buildInitialAnnotations();
 
